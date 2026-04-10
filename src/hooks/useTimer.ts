@@ -23,14 +23,17 @@ export function useTimer() {
     }
   ), []);
 
-  // Reset alert flags on round change
-  useEffect(() => useAppStore.subscribe(
-    (s) => s.currentRound,
-    () => {
-      oneMinuteFiredRef.current = false;
-      roundOverFiredRef.current = false;
-    }
-  ), []);
+  // Reset alert flags on round change (zustand v5: subscribe takes single listener)
+  useEffect(() => {
+    let prevRound = useAppStore.getState().currentRound;
+    return useAppStore.subscribe(s => {
+      if (s.currentRound !== prevRound) {
+        prevRound = s.currentRound;
+        oneMinuteFiredRef.current = false;
+        roundOverFiredRef.current = false;
+      }
+    });
+  }, []);
 
   const announceCurrentRound = useCallback(() => {
     const s = useAppStore.getState();
@@ -60,6 +63,9 @@ export function useTimer() {
 
     setTimeout(() => {
       useAppStore.getState().nextRound();
+      if (!useAppStore.getState().isOnBreak) {
+        useAppStore.getState().startTimer();
+      }
       announceCurrentRound();
     }, 800);
   }, [playRoundEnd, announceCurrentRound]);

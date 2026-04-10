@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, Animated, Modal, ScrollView, StatusBar,
 } from 'react-native';
+import { useKeepAwake } from 'expo-keep-awake';
 import { useAppStore } from '../store';
 import { useTimer } from '../hooks/useTimer';
 import { BlindsDisplay } from '../components/BlindsDisplay';
@@ -12,6 +13,7 @@ import { COLORS } from '../components/theme';
 import { formatTime, calculateTimeToBreak } from '../utils';
 
 export function TimerScreen() {
+  useKeepAwake();
   useTimer();
 
   const store    = useAppStore();

@@ -151,7 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         currentRound: nextIndex,
         secondsRemaining: next.durationMinutes * 60,
-        status: 'paused',
+        status: 'running',
         isOnBreak: false,
       });
     }
@@ -169,7 +169,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       currentRound: clamped,
       secondsRemaining: (rounds[clamped]?.durationMinutes ?? 20) * 60,
-      status: 'paused',
+      status: 'running',
       isOnBreak: false,
     });
   },
@@ -181,16 +181,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ settings: { ...s.settings, ...partial } })),
 
   saveState: async () => {
-    const { modelChoice, currentRound, secondsRemaining, status, isOnBreak, players, settings, structures } = get();
+    const { modelChoice, currentRound, secondsRemaining, isOnBreak, players, settings, structures } = get();
     try {
-      await AsyncStorage.multiSet([
-        [KEYS.modelChoice,  String(modelChoice)],
-        [KEYS.currentRound, String(currentRound)],
-        [KEYS.timerRemains, String(secondsRemaining)],
-        [KEYS.isOnBreak,    String(isOnBreak)],
-        [KEYS.playerState,  JSON.stringify(players)],
-        [KEYS.settings,     JSON.stringify(settings)],
-        [KEYS.structures,   JSON.stringify(structures)],
+      await Promise.all([
+        AsyncStorage.setItem(KEYS.modelChoice,  String(modelChoice)),
+        AsyncStorage.setItem(KEYS.currentRound, String(currentRound)),
+        AsyncStorage.setItem(KEYS.timerRemains, String(secondsRemaining)),
+        AsyncStorage.setItem(KEYS.isOnBreak,    String(isOnBreak)),
+        AsyncStorage.setItem(KEYS.playerState,  JSON.stringify(players)),
+        AsyncStorage.setItem(KEYS.settings,     JSON.stringify(settings)),
+        AsyncStorage.setItem(KEYS.structures,   JSON.stringify(structures)),
       ]);
     } catch (e) {
       console.warn('saveState error', e);
@@ -199,17 +199,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadState: async () => {
     try {
-      const pairs = await AsyncStorage.multiGet(Object.values(KEYS));
-      const stored: Record<string, string | null> = {};
-      pairs.forEach(([k, v]) => { stored[k] = v; });
+      const [
+        modelChoiceStr, currentRoundStr, timerRemainsStr,
+        isOnBreakStr, playerStateStr, settingsStr, structuresStr,
+      ] = await Promise.all(Object.values(KEYS).map(k => AsyncStorage.getItem(k)));
 
-      const modelChoice  = stored[KEYS.modelChoice]  != null ? Number(stored[KEYS.modelChoice])  : 0;
-      const currentRound = stored[KEYS.currentRound] != null ? Number(stored[KEYS.currentRound]) : 0;
-      const timerRemains = stored[KEYS.timerRemains] != null ? Number(stored[KEYS.timerRemains]) : null;
-      const isOnBreak    = stored[KEYS.isOnBreak] === 'true';
-      const players      = stored[KEYS.playerState] ? JSON.parse(stored[KEYS.playerState]!) : null;
-      const settings     = stored[KEYS.settings]    ? JSON.parse(stored[KEYS.settings]!)    : null;
-      const structures   = stored[KEYS.structures]  ? JSON.parse(stored[KEYS.structures]!)  : null;
+      const modelChoice  = modelChoiceStr  != null ? Number(modelChoiceStr)  : 0;
+      const currentRound = currentRoundStr != null ? Number(currentRoundStr) : 0;
+      const timerRemains = timerRemainsStr != null ? Number(timerRemainsStr) : null;
+      const isOnBreak    = isOnBreakStr === 'true';
+      const players      = playerStateStr  ? JSON.parse(playerStateStr)  : null;
+      const settings     = settingsStr     ? JSON.parse(settingsStr)     : null;
+      const structures   = structuresStr   ? JSON.parse(structuresStr)   : null;
 
       const nextStructures = structures ?? DEFAULT_STRUCTURES;
       const nextRounds     = activeRounds(nextStructures[modelChoice].rounds);
