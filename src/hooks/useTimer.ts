@@ -90,7 +90,7 @@ export function useTimer() {
       const onBreak  = isOnBreakRef.current;
 
       if (!onBreak && seconds === 60) handleOneMinute();
-      if (seconds <= 1) { handleRoundOver(); return; }
+      if (!onBreak && seconds <= 1) { handleRoundOver(); return; }
 
       useAppStore.getState().tick();
     }, 1000);

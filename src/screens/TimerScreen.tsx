@@ -57,7 +57,7 @@ export function TimerScreen() {
           </Text>
         </TouchableOpacity>
         <Text style={styles.roundLabel}>
-          {isOnBreak ? 'BREAK' : `LEVEL ${currentRound + 1}`}
+          {isOnBreak ? 'ON BREAK' : `LEVEL ${currentRound + 1}`}
         </Text>
       </View>
 
@@ -104,12 +104,14 @@ export function TimerScreen() {
         {/* Right: blinds + optional player tracker */}
         <View style={styles.right}>
           {round && (
-            <BlindsDisplay
-              round={round}
-              nextRound={nextRound}
-              showNextBlind={settings.showNextBlind}
-              sizeMultiplier={settings.blindsSizeMultiplier}
-            />
+            <View style={isOnBreak && styles.blindsDimmed}>
+              <BlindsDisplay
+                round={round}
+                nextRound={nextRound}
+                showNextBlind={settings.showNextBlind}
+                sizeMultiplier={settings.blindsSizeMultiplier}
+              />
+            </View>
           )}
           {settings.showStackDetails && (
             <PlayerTracker players={players} onUpdate={store.updatePlayers} />
@@ -174,6 +176,7 @@ const styles = StyleSheet.create({
   clockBtn:       { borderWidth: 1, borderColor: COLORS.divider, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
   clockBtnText:   { color: COLORS.dimText, fontSize: 11, letterSpacing: 1.5 },
   right:          { alignItems: 'flex-end', gap: 20, minWidth: '38%' },
+  blindsDimmed:   { opacity: 0.35 },
   overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center' },
   modalCard:      { backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, alignItems: 'center', gap: 16, minWidth: 220 },
   pickerCard:     { backgroundColor: COLORS.surface, borderRadius: 16, padding: 20, width: '80%', maxHeight: '60%', gap: 12 },

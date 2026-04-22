@@ -109,12 +109,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (isOnBreak) {
       if (breakSecondsRemaining <= 1) {
-        const round = get().getCurrentRound();
+        const nextIndex = get().currentRound + 1;
+        const rounds = activeRounds(get().structures[get().modelChoice].rounds);
+        const next = rounds[nextIndex];
         set({
           isOnBreak: false,
           breakSecondsRemaining: 0,
+          currentRound: nextIndex,
+          secondsRemaining: (next?.durationMinutes ?? 20) * 60,
           status: 'running',
-          secondsRemaining: (round?.durationMinutes ?? 20) * 60,
         });
       } else {
         set({ breakSecondsRemaining: breakSecondsRemaining - 1 });
@@ -131,23 +134,35 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   nextRound: () => {
-    const { currentRound, structures, modelChoice } = get();
+    const { currentRound, structures, modelChoice, isOnBreak } = get();
     const rounds = activeRounds(structures[modelChoice].rounds);
     const nextIndex = currentRound + 1;
     if (nextIndex >= rounds.length) return;
 
-    const current = rounds[currentRound];
-    const next = rounds[nextIndex];
+    // If already on break, skip to the next level immediately
+    if (isOnBreak) {
+      const next = rounds[nextIndex];
+      set({
+        isOnBreak: false,
+        breakSecondsRemaining: 0,
+        currentRound: nextIndex,
+        secondsRemaining: next.durationMinutes * 60,
+        status: 'running',
+      });
+      return;
+    }
 
+    const current = rounds[currentRound];
+
+    // Enter break mode WITHOUT advancing currentRound
     if (current?.breakAfterMinutes > 0) {
       set({
-        currentRound: nextIndex,
         isOnBreak: true,
         breakSecondsRemaining: current.breakAfterMinutes * 60,
-        secondsRemaining: next.durationMinutes * 60,
         status: 'break',
       });
     } else {
+      const next = rounds[nextIndex];
       set({
         currentRound: nextIndex,
         secondsRemaining: next.durationMinutes * 60,
