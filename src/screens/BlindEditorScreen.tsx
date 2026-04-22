@@ -307,10 +307,14 @@ export function BlindEditorScreen() {
   };
 
   const clearAll = () => {
-    Alert.alert('Clear All Rounds', 'This will erase all round data.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: () => mutate([{ ...BLANK_ROUND }]) },
-    ]);
+    const emptyRounds = Array.from({ length: 30 }, () => ({
+      smallBlind: 0, bigBlind: 0, ante: 0,
+      durationMinutes: 0, breakAfterMinutes: 0, comment: '',
+    }));
+    updateStructure({ ...structures[selectedId], name, rounds: emptyRounds });
+    setRounds([{ ...BLANK_ROUND }]);
+    setUnsaved(false);
+    setPendingComments(new Set());
   };
 
   const applyWizard = (newRounds: Round[]) => {
