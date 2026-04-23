@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, Animated, Modal, ScrollView, StatusBar,
@@ -6,16 +6,18 @@ import {
 import { useKeepAwake } from 'expo-keep-awake';
 import { useAppStore } from '../store';
 import { useTimer } from '../hooks/useTimer';
+import { useTTS } from '../hooks/useTTS';
 import { BlindsDisplay } from '../components/BlindsDisplay';
 import { PlayerTracker } from '../components/PlayerTracker';
 import { BetTimer } from '../components/BetTimer';
 import { COLORS } from '../components/theme';
-import { formatTime, calculateTimeToBreak } from '../utils';
+import { formatTime, calculateTimeToBreak, effectiveBigBlind, buildBlindAnnouncement, buildBreakAnnouncement } from '../utils';
 
 export function TimerScreen() {
   useKeepAwake();
   useTimer();
 
+  const { speak } = useTTS();
   const store    = useAppStore();
   const { settings, players, status, secondsRemaining, currentRound, isOnBreak, breakSecondsRemaining } = store;
   const round    = store.getCurrentRound();
@@ -24,6 +26,30 @@ export function TimerScreen() {
 
   const [showBetTimer, setShowBetTimer]           = useState(false);
   const [showStructurePicker, setShowStructurePicker] = useState(false);
+
+  const announceCurrentRound = useCallback(() => {
+    const s = useAppStore.getState();
+    const { settings } = s;
+    if (!settings.sayBlinds) return;
+    if (s.isOnBreak) {
+      speak(buildBreakAnnouncement(settings.ttsLanguage), settings.ttsLanguage);
+      return;
+    }
+    const r = s.getCurrentRound();
+    if (!r) return;
+    const bb = effectiveBigBlind(r);
+    speak(buildBlindAnnouncement(r.smallBlind, bb, r.ante, settings.ttsLanguage), settings.ttsLanguage);
+  }, [speak]);
+
+  const handleNext = () => {
+    store.nextRound();
+    setTimeout(() => announceCurrentRound(), 300);
+  };
+
+  const handlePrev = () => {
+    store.prevRound();
+    setTimeout(() => announceCurrentRound(), 300);
+  };
 
   const blinkAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -80,7 +106,7 @@ export function TimerScreen() {
           )}
 
           <View style={styles.controls}>
-            <TouchableOpacity style={styles.ctrlBtn} onPress={store.prevRound}>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={handlePrev}>
               <Text style={styles.ctrlIcon}>⏮</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -91,7 +117,7 @@ export function TimerScreen() {
                 {isRunning ? '⏸' : '▶'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ctrlBtn} onPress={store.nextRound}>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={handleNext}>
               <Text style={styles.ctrlIcon}>⏭</Text>
             </TouchableOpacity>
           </View>

@@ -66,7 +66,7 @@ export function useTimer() {
       if (!useAppStore.getState().isOnBreak) {
         useAppStore.getState().startTimer();
       }
-      announceCurrentRound();
+      setTimeout(() => announceCurrentRound(), 300);
     }, 800);
   }, [playRoundEnd, announceCurrentRound]);
 
@@ -89,7 +89,7 @@ export function useTimer() {
       const seconds  = secondsRef.current;
       const onBreak  = isOnBreakRef.current;
 
-      if (!onBreak && seconds === 60) handleOneMinute();
+      if (!onBreak && seconds <= 60 && seconds > 59) handleOneMinute();
       if (!onBreak && seconds <= 1) { handleRoundOver(); return; }
 
       useAppStore.getState().tick();
