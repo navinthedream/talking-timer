@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import * as Haptics from 'expo-haptics';
 import { useAppStore } from '../store';
 import { useTTS } from './useTTS';
 import { useSoundAlerts } from './useSoundAlerts';
@@ -60,13 +61,16 @@ export function useTimer() {
 
     const { settings } = useAppStore.getState();
     if (settings.roundAlertOn) playRoundEnd();
+    if (settings.vibrateOn) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
 
     setTimeout(() => {
       useAppStore.getState().nextRound();
       if (!useAppStore.getState().isOnBreak) {
         useAppStore.getState().startTimer();
       }
-      setTimeout(() => announceCurrentRound(), 300);
+      setTimeout(() => announceCurrentRound(), 700);
     }, 800);
   }, [playRoundEnd, announceCurrentRound]);
 
@@ -77,7 +81,9 @@ export function useTimer() {
     const { settings } = useAppStore.getState();
     if (settings.oneMinuteAlertOn) playOneMinute();
     if (settings.oneMinuteVoiceOn) {
-      speak(buildOneMinuteWarning(settings.ttsLanguage), settings.ttsLanguage);
+      setTimeout(() => {
+        speak(buildOneMinuteWarning(settings.ttsLanguage), settings.ttsLanguage);
+      }, 1500);
     }
   }, [playOneMinute, speak]);
 

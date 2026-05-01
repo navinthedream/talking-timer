@@ -1,55 +1,52 @@
-import { useCallback } from 'react';
-import * as Haptics from 'expo-haptics';
-import { useAppStore } from '../store';
-
-// To add real sound files:
-//   1. Place buzzer.wav and chimes.wav in assets/sounds/
-//   2. Uncomment the expo-av imports and Sound calls below
-
-// import { Audio } from 'expo-av';
+import { useEffect, useRef, useCallback } from 'react';
+import { Audio } from 'expo-av';
 
 export function useSoundAlerts() {
-  const playRoundEnd = useCallback(async () => {
-    const { settings } = useAppStore.getState();
-    if (!settings.roundAlertOn) return;
+  const buzzerRef = useRef<Audio.Sound | null>(null);
+  const chimesRef = useRef<Audio.Sound | null>(null);
 
-    if (settings.vibrateOn) {
-      // Double heavy impact to simulate buzzer
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150);
-      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
+  useEffect(() => {
+    let buzzer: Audio.Sound;
+    let chimes: Audio.Sound;
+
+    async function load() {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+      });
+      ({ sound: buzzer } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/buzzer1.wav'), { shouldPlay: false }
+      ));
+      ({ sound: chimes } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/chimes.wav'), { shouldPlay: false }
+      ));
+      buzzerRef.current = buzzer;
+      chimesRef.current = chimes;
     }
 
-    // Uncomment to add sound (add assets/sounds/buzzer.wav first):
-    // try {
-    //   const { sound } = await Audio.Sound.createAsync(
-    //     require('../../assets/sounds/buzzer.wav')
-    //   );
-    //   await sound.playAsync();
-    //   sound.setOnPlaybackStatusUpdate(status => {
-    //     if (status.isLoaded && status.didJustFinish) sound.unloadAsync();
-    //   });
-    // } catch (e) { console.warn('[sound] round end error', e); }
+    load().catch(console.warn);
+    return () => {
+      buzzer?.unloadAsync().catch(() => {});
+      chimes?.unloadAsync().catch(() => {});
+    };
+  }, []);
+
+  const playRoundEnd = useCallback(async () => {
+    try {
+      const sound = buzzerRef.current;
+      if (!sound) return;
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
+    } catch (e) { console.warn('playRoundEnd error', e); }
   }, []);
 
   const playOneMinute = useCallback(async () => {
-    const { settings } = useAppStore.getState();
-    if (!settings.oneMinuteAlertOn) return;
-
-    if (settings.vibrateOn) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    }
-
-    // Uncomment to add sound (add assets/sounds/chimes.wav first):
-    // try {
-    //   const { sound } = await Audio.Sound.createAsync(
-    //     require('../../assets/sounds/chimes.wav')
-    //   );
-    //   await sound.playAsync();
-    //   sound.setOnPlaybackStatusUpdate(status => {
-    //     if (status.isLoaded && status.didJustFinish) sound.unloadAsync();
-    //   });
-    // } catch (e) { console.warn('[sound] one minute error', e); }
+    try {
+      const sound = chimesRef.current;
+      if (!sound) return;
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
+    } catch (e) { console.warn('playOneMinute error', e); }
   }, []);
 
   return { playRoundEnd, playOneMinute };

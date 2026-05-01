@@ -224,8 +224,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       const timerRemains = timerRemainsStr != null ? Number(timerRemainsStr) : null;
       const isOnBreak    = isOnBreakStr === 'true';
       const players      = playerStateStr  ? JSON.parse(playerStateStr)  : null;
-      const settings     = settingsStr     ? JSON.parse(settingsStr)     : null;
       const structures   = structuresStr   ? JSON.parse(structuresStr)   : null;
+
+      const rawSettings = settingsStr ? JSON.parse(settingsStr) : null;
+      const settings = rawSettings ? {
+        ...DEFAULT_SETTINGS,
+        ...rawSettings,
+        sayBlinds:         rawSettings.sayBlinds         === true || rawSettings.sayBlinds         === 'true',
+        oneMinuteVoiceOn:  rawSettings.oneMinuteVoiceOn  === true || rawSettings.oneMinuteVoiceOn  === 'true',
+        roundAlertOn:      rawSettings.roundAlertOn      === true || rawSettings.roundAlertOn      === 'true',
+        oneMinuteAlertOn:  rawSettings.oneMinuteAlertOn  === true || rawSettings.oneMinuteAlertOn  === 'true',
+        vibrateOn:         rawSettings.vibrateOn         === true || rawSettings.vibrateOn         === 'true',
+        showStackDetails:  rawSettings.showStackDetails  === true || rawSettings.showStackDetails  === 'true',
+        showTimeToBreak:   rawSettings.showTimeToBreak   === true || rawSettings.showTimeToBreak   === 'true',
+        showNextBlind:     rawSettings.showNextBlind     === true || rawSettings.showNextBlind     === 'true',
+      } : null;
 
       const nextStructures = structures ?? DEFAULT_STRUCTURES;
       const nextRounds     = activeRounds(nextStructures[modelChoice].rounds);
@@ -243,6 +256,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     } catch (e) {
       console.warn('loadState error', e);
+      set({ settings: DEFAULT_SETTINGS });
     }
   },
 }));

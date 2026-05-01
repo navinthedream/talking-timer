@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, Animated, Modal, ScrollView, StatusBar,
+  SafeAreaView, Animated, Modal, ScrollView, StatusBar, useWindowDimensions,
 } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useAppStore } from '../store';
@@ -64,12 +64,16 @@ export function TimerScreen() {
     blinkAnim.setValue(1);
   }, [status]);
 
+  const { width, height } = useWindowDimensions();
+  console.log('dimensions:', width, height); // add this line
+  const isLandscape = width > height;
+
   const isRunning     = status === 'running' || status === 'break';
   const displayTime   = isOnBreak ? breakSecondsRemaining : secondsRemaining;
   const timeToBreak   = settings.showTimeToBreak
     ? calculateTimeToBreak(rounds, currentRound, secondsRemaining)
     : null;
-  const clockFontSize = 72 * settings.clockSizeMultiplier;
+  const clockFontSize = 80 * settings.clockSizeMultiplier;
 
   return (
     <SafeAreaView style={[styles.root, isOnBreak && styles.rootBreak]}>
@@ -77,8 +81,8 @@ export function TimerScreen() {
 
       {/* Top bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => setShowStructurePicker(true)}>
-          <Text style={styles.structureName}>
+        <TouchableOpacity onPress={() => setShowStructurePicker(true)} style={styles.structureNameWrapper}>
+          <Text style={styles.structureName} numberOfLines={1}>
             {store.structures[store.modelChoice].name} ▾
           </Text>
         </TouchableOpacity>
@@ -87,24 +91,40 @@ export function TimerScreen() {
         </Text>
       </View>
 
-      {/* Main layout */}
-      <View style={styles.main}>
+      {/* Main layout — portrait column / landscape row */}
+      <View style={[styles.main, isLandscape && styles.mainLandscape]}>
 
-        {/* Left: timer + controls */}
-        <View style={styles.left}>
-          <Animated.Text style={[
-            styles.timer,
-            { fontSize: clockFontSize },
-            (status === 'paused' || status === 'idle') && { opacity: blinkAnim },
-            isOnBreak && { color: '#66BB6A' },
-          ]}>
-            {formatTime(displayTime)}
-          </Animated.Text>
+        {/* Left col (portrait: full width; landscape: left side) */}
+        <View style={[styles.leftCol, isLandscape && styles.leftColLandscape]}>
+          {/* Timer */}
+          <View style={styles.timerSection}>
+            <Animated.Text style={[
+              styles.timer,
+              { fontSize: clockFontSize },
+              (status === 'paused' || status === 'idle') && { opacity: blinkAnim },
+              isOnBreak && { color: '#66BB6A' },
+            ]}>
+              {formatTime(displayTime)}
+            </Animated.Text>
 
-          {timeToBreak !== null && !isOnBreak && (
-            <Text style={styles.breakStrip}>BREAK IN {formatTime(timeToBreak)}</Text>
+            {timeToBreak !== null && !isOnBreak && (
+              <Text style={styles.breakStrip}>BREAK IN {formatTime(timeToBreak)}</Text>
+            )}
+          </View>
+
+          {/* Blinds — portrait only */}
+          {!isLandscape && round && (
+            <View style={[styles.blindsSection, isOnBreak && styles.blindsDimmed]}>
+              <BlindsDisplay
+                round={round}
+                nextRound={nextRound}
+                showNextBlind={settings.showNextBlind}
+                sizeMultiplier={settings.blindsSizeMultiplier}
+              />
+            </View>
           )}
 
+          {/* Controls */}
           <View style={styles.controls}>
             <TouchableOpacity style={styles.ctrlBtn} onPress={handlePrev}>
               <Text style={styles.ctrlIcon}>⏮</Text>
@@ -122,27 +142,35 @@ export function TimerScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.clockBtn} onPress={() => setShowBetTimer(true)}>
-            <Text style={styles.clockBtnText}>⏱  CALL THE CLOCK</Text>
-          </TouchableOpacity>
+          {/* Call the Clock — portrait only; landscape puts it in the right col */}
+          {!isLandscape && (
+            <TouchableOpacity style={styles.clockBtn} onPress={() => setShowBetTimer(true)}>
+              <Text style={styles.clockBtnText}>⏱  CALL THE CLOCK</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Right: blinds + optional player tracker */}
-        <View style={styles.right}>
-          {round && (
-            <View style={isOnBreak && styles.blindsDimmed}>
-              <BlindsDisplay
-                round={round}
-                nextRound={nextRound}
-                showNextBlind={settings.showNextBlind}
-                sizeMultiplier={settings.blindsSizeMultiplier}
-              />
+        {/* Right col — landscape only: blinds centered, call the clock at bottom */}
+        {isLandscape && (
+          <View style={styles.rightColLandscape}>
+            <View style={[styles.rightColContent, isOnBreak && styles.blindsDimmed]}>
+              {round && (
+                <BlindsDisplay
+                  round={round}
+                  nextRound={nextRound}
+                  showNextBlind={settings.showNextBlind}
+                  sizeMultiplier={settings.blindsSizeMultiplier}
+                />
+              )}
+              {settings.showStackDetails && (
+                <PlayerTracker players={players} onUpdate={store.updatePlayers} />
+              )}
             </View>
-          )}
-          {settings.showStackDetails && (
-            <PlayerTracker players={players} onUpdate={store.updatePlayers} />
-          )}
-        </View>
+            <TouchableOpacity style={styles.clockBtn} onPress={() => setShowBetTimer(true)}>
+              <Text style={styles.clockBtnText}>⏱  CALL THE CLOCK</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Bet Timer Modal */}
@@ -188,21 +216,28 @@ export function TimerScreen() {
 const styles = StyleSheet.create({
   root:           { flex: 1, backgroundColor: COLORS.background },
   rootBreak:      { backgroundColor: '#1A2A1A' },
-  topBar:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
-  structureName:  { color: COLORS.dimText, fontSize: 12, letterSpacing: 1.5 },
-  roundLabel:     { color: COLORS.labelText, fontSize: 13, letterSpacing: 2 },
-  main:           { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 16 },
-  left:           { flex: 1, alignItems: 'center', gap: 14 },
-  timer:          { color: COLORS.timerText, fontWeight: '100', letterSpacing: 4 },
-  breakStrip:     { color: COLORS.dimText, fontSize: 11, letterSpacing: 2 },
-  controls:       { flexDirection: 'row', alignItems: 'center', gap: 20 },
-  ctrlBtn:        { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
-  ctrlIcon:       { fontSize: 22, color: COLORS.primaryText },
-  playBtn:        { width: 68, height: 68, borderRadius: 34, backgroundColor: COLORS.accent },
-  clockBtn:       { borderWidth: 1, borderColor: COLORS.divider, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
-  clockBtnText:   { color: COLORS.dimText, fontSize: 11, letterSpacing: 1.5 },
-  right:          { alignItems: 'flex-end', gap: 20, minWidth: '38%' },
-  blindsDimmed:   { opacity: 0.35 },
+  topBar:              { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  structureNameWrapper:{ flex: 1, marginRight: 8 },
+  structureName:       { color: COLORS.dimText, fontSize: 12, letterSpacing: 1.5 },
+  roundLabel:          { color: COLORS.labelText, fontSize: 13, letterSpacing: 2, flexShrink: 0 },
+  // Portrait: column; items centered vertically + horizontally
+  main:                { flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 20 },
+  mainLandscape:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 0 },
+  leftCol:             { alignItems: 'center', gap: 20 },
+  leftColLandscape:    { flex: 1, alignItems: 'center', gap: 16, paddingRight: 16 },
+  rightColLandscape:   { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingVertical: 8, borderLeftWidth: 1, borderLeftColor: COLORS.divider },
+  rightColContent:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  timerSection:        { alignItems: 'center', gap: 4 },
+  timer:               { color: COLORS.timerText, fontWeight: '100', letterSpacing: 4 },
+  breakStrip:          { color: COLORS.dimText, fontSize: 11, letterSpacing: 2 },
+  blindsSection:       { alignItems: 'center', width: '100%' },
+  blindsDimmed:        { opacity: 0.35 },
+  controls:            { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  ctrlBtn:             { width: 52, height: 52, borderRadius: 26, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
+  ctrlIcon:            { fontSize: 22, color: COLORS.primaryText },
+  playBtn:             { width: 68, height: 68, borderRadius: 34, backgroundColor: COLORS.accent },
+  clockBtn:            { borderWidth: 1, borderColor: COLORS.divider, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  clockBtnText:        { color: COLORS.dimText, fontSize: 11, letterSpacing: 1.5 },
   overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center' },
   modalCard:      { backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, alignItems: 'center', gap: 16, minWidth: 220 },
   pickerCard:     { backgroundColor: COLORS.surface, borderRadius: 16, padding: 20, width: '80%', maxHeight: '60%', gap: 12 },
